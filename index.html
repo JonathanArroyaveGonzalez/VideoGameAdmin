@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laberinto Corporativo: Estructura Organizacional</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/babel-standalone@6.26.0/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f2f5;
+        }
+        
+        .maze-cell {
+            width: 40px;
+            height: 40px;
+            transition: all 0.3s ease;
+        }
+        
+        .player {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .wall {
+            background-color: #2c3e50;
+        }
+        
+        .path {
+            background-color: #ecf0f1;
+        }
+        
+        .department-production {
+            background-color: #3498db;
+        }
+        
+        .department-marketing {
+            background-color: #e74c3c;
+        }
+        
+        .department-finance {
+            background-color: #2ecc71;
+        }
+        
+        .department-hr {
+            background-color: #9b59b6;
+        }
+        
+        .department-admin {
+            background-color: #f39c12;
+        }
+        
+        .cost-cell {
+            background-color: #1abc9c;
+        }
+        
+        .goal {
+            background-color: #f1c40f;
+        }
+        
+        .challenge-modal {
+            transition: all 0.3s ease;
+        }
+        
+        .fadeIn {
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .player-avatar {
+            animation: bounce 1s infinite alternate;
+        }
+        
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-5px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // Definición del laberinto
+        // 0: pared, 1: camino, 2: producción, 3: marketing, 4: finanzas, 5: RRHH, 6: administración, 7: costos, 8: meta
+        const initialMazeDefinition = [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0],
+            [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0],
+            [0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0],
+            [0, 2, 2, 2, 0, 1, 0, 3, 3, 1, 0, 1, 0, 1, 0],
+            [0, 2, 0, 2, 0, 1, 0, 3, 0, 1, 0, 1, 0, 1, 0],
+            [0, 2, 2, 2, 0, 1, 1, 3, 0, 1, 1, 1, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 4, 4, 4, 0, 5, 5, 5, 0, 6, 6, 6, 0, 1, 0],
+            [0, 4, 0, 4, 0, 5, 0, 5, 0, 6, 0, 6, 0, 1, 0],
+            [0, 4, 4, 4, 1, 5, 5, 5, 1, 6, 6, 6, 1, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0],
+            [0, 7, 7, 7, 1, 7, 7, 7, 1, 7, 7, 7, 0, 7, 0],
+            [0, 7, 0, 7, 0, 7, 0, 7, 0, 7, 0, 7, 0, 7, 0],
+            [0, 7, 7, 7, 0, 7, 7, 7, 0, 7, 7, 7, 1, 8, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ];
+        
+        // Preguntas y desafíos por área
+        const challenges = {
+            production: [
+                {
+                    question: "En la función de producción, ¿cuál de estas actividades NO está directamente relacionada con esta área?",
+                    options: [
+                        "Control de calidad del producto",
+                        "Diseño de campañas publicitarias",
+                        "Gestión de materias primas",
+                        "Planificación de la capacidad productiva"
+                    ],
+                    correctAnswer: 1,
+                    explanation: "El diseño de campañas publicitarias corresponde a la función de Marketing. La función de Producción se encarga de transformar insumos en productos terminados, incluyendo control de calidad, gestión de materias primas y planificación de la capacidad productiva."
+                },
+                {
+                    question: "¿Qué consecuencia tendría en la estructura organizacional implementar un sistema de producción just-in-time?",
+                    options: [
+                        "Incremento de personal de almacenamiento",
+                        "Mayor independencia entre departamentos",
+                        "Mayor coordinación entre proveedores y producción",
+                        "Incremento en niveles de inventario"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "Un sistema just-in-time requiere mayor coordinación entre proveedores y producción, reduciendo inventarios y necesitando una estructura organizacional más integrada y comunicativa entre departamentos."
+                },
+                {
+                    question: "¿Cómo afecta la automatización de procesos a los costos de producción a largo plazo?",
+                    options: [
+                        "Aumenta costos variables y disminuye fijos",
+                        "Disminuye costos variables y aumenta fijos",
+                        "Aumenta tanto costos variables como fijos",
+                        "No tiene efecto significativo en la estructura de costos"
+                    ],
+                    correctAnswer: 1,
+                    explanation: "La automatización generalmente aumenta los costos fijos (inversión inicial en equipos) pero disminuye los costos variables (menos mano de obra por unidad) a largo plazo, cambiando la estructura de costos de la organización."
+                }
+            ],
+            marketing: [
+                {
+                    question: "¿Qué estructura organizacional es más adecuada para un departamento de marketing que atiende diversos mercados internacionales?",
+                    options: [
+                        "Estructura funcional (por especialidades)",
+                        "Estructura geográfica (por regiones)",
+                        "Estructura por producto",
+                        "Estructura matricial"
+                    ],
+                    correctAnswer: 1,
+                    explanation: "Una estructura geográfica (por regiones) permite adaptar las estrategias de marketing a las particularidades culturales y comerciales de cada región internacional, facilitando la personalización de campañas."
+                },
+                {
+                    question: "En un análisis de ROI de marketing, se descubre que los costos de adquisición de clientes están aumentando. ¿Qué acción organizacional sería más adecuada?",
+                    options: [
+                        "Aumentar el presupuesto de marketing sin cambios estructurales",
+                        "Eliminar el departamento de marketing digital",
+                        "Reestructurar el equipo para enfocarse en canales más eficientes",
+                        "Tercerizar completamente la función de marketing"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "Reestructurar el equipo para enfocarse en canales más eficientes permite optimizar recursos y reducir costos de adquisición, adaptando la estructura organizacional a los resultados de desempeño y maximizando el ROI."
+                },
+                {
+                    question: "¿Cómo impacta en los costos organizacionales la implementación de una estrategia de marketing de contenidos?",
+                    options: [
+                        "Disminuye costos de publicidad tradicional pero aumenta costos de personal especializado",
+                        "Aumenta todos los costos de marketing sin excepción",
+                        "Reduce todos los costos de marketing inmediatamente",
+                        "No tiene impacto en la estructura de costos"
+                    ],
+                    correctAnswer: 0,
+                    explanation: "Una estrategia de marketing de contenidos suele disminuir costos en publicidad tradicional pero requiere inversión en personal especializado (redactores, diseñadores, SEO), cambiando la estructura de costos del departamento."
+                }
+            ],
+            finance: [
+                {
+                    question: "¿Qué estructura organizacional facilita mejor el control financiero descentralizado en una multinacional?",
+                    options: [
+                        "Estructura funcional centralizada",
+                        "Estructura divisional por unidades de negocio",
+                        "Estructura jerárquica tradicional",
+                        "Estructura plana sin mandos medios"
+                    ],
+                    correctAnswer: 1,
+                    explanation: "Una estructura divisional por unidades de negocio permite que cada división tenga su propio control financiero adaptado a sus necesidades, facilitando la toma de decisiones financieras descentralizadas pero manteniendo estándares comunes."
+                },
+                {
+                    question: "Al implementar un sistema ERP para la gestión financiera, ¿qué cambio organizacional suele ocurrir?",
+                    options: [
+                        "Aumento del personal contable",
+                        "Mayor segregación entre departamentos",
+                        "Reducción de personal administrativo y mayor integración interdepartamental",
+                        "Eliminación del departamento financiero"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "La implementación de un ERP suele resultar en una reducción del personal administrativo dedicado a tareas repetitivas y una mayor integración entre departamentos, ya que la información financiera fluye automáticamente entre áreas."
+                },
+                {
+                    question: "¿Cómo influye la política de gestión de capital de trabajo en la estructura organizacional?",
+                    options: [
+                        "No tiene relación con la estructura organizacional",
+                        "Define únicamente la estructura del departamento financiero",
+                        "Influye en la comunicación entre ventas, compras, producción y finanzas",
+                        "Solo afecta a la relación con proveedores"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "La gestión del capital de trabajo requiere coordinación entre ventas (cuentas por cobrar), compras (cuentas por pagar), producción (inventarios) y finanzas, impactando en los flujos de comunicación y la estructura organizacional entre estos departamentos."
+                }
+            ],
+            hr: [
+                {
+                    question: "¿Qué modelo organizacional favorece mejor el desarrollo profesional de los empleados?",
+                    options: [
+                        "Estructura jerárquica tradicional",
+                        "Estructura horizontal sin posibilidades de ascenso",
+                        "Estructura por proyectos con roles rotativos",
+                        "Estructura centralizada con decisiones unilaterales"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "Una estructura por proyectos con roles rotativos permite que los empleados desarrollen diversas habilidades y competencias al trabajar en diferentes proyectos y funciones, favoreciendo su desarrollo profesional integral."
+                },
+                {
+                    question: "En una organización que adopta el teletrabajo permanente, ¿qué ajuste estructural en RRHH sería más adecuado?",
+                    options: [
+                        "Eliminar el departamento de RRHH",
+                        "Incrementar el personal de control y supervisión",
+                        "Reorientar funciones hacia desarrollo, bienestar y comunicación virtual",
+                        "Mantener exactamente la misma estructura"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "El teletrabajo permanente requiere reorientar las funciones de RRHH hacia el desarrollo profesional a distancia, el bienestar psicológico y la comunicación virtual efectiva, en lugar de la supervisión presencial tradicional."
+                },
+                {
+                    question: "¿Qué relación existe entre los costos de rotación de personal y la estructura organizacional?",
+                    options: [
+                        "No existe relación alguna",
+                        "Los costos de rotación son mayores en estructuras horizontales",
+                        "Los costos de rotación suelen ser menores en organizaciones con planes de carrera definidos y estructuras claras",
+                        "La rotación no representa un costo significativo"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "Las organizaciones con planes de carrera bien definidos y estructuras organizacionales claras suelen tener menor rotación, reduciendo costos de reclutamiento, selección y capacitación. Una estructura adecuada favorece la retención del talento."
+                }
+            ],
+            admin: [
+                {
+                    question: "¿Qué enfoque administrativo requiere una estructura organizacional más flexible?",
+                    options: [
+                        "Administración burocrática tradicional",
+                        "Gestión por procesos",
+                        "Administración científica taylorista",
+                        "Gestión centralizada"
+                    ],
+                    correctAnswer: 1,
+                    explanation: "La gestión por procesos requiere una estructura organizacional flexible que permita el flujo de trabajo a través de diferentes áreas funcionales, enfocándose en los procesos completos más que en departamentos aislados."
+                },
+                {
+                    question: "En la transición de una estructura funcional a una matricial, ¿qué desafío administrativo es más crítico?",
+                    options: [
+                        "Reducción de personal",
+                        "Gestión de conflictos por doble autoridad",
+                        "Aumento de costos tecnológicos",
+                        "Rediseño del espacio físico"
+                    ],
+                    correctAnswer: 1,
+                    explanation: "El desafío más crítico en una estructura matricial es la gestión de conflictos generados por la doble autoridad (jefe funcional y jefe de proyecto), requiriendo nuevas habilidades directivas y claridad en las responsabilidades."
+                },
+                {
+                    question: "¿Qué impacto tiene la implementación de metodologías ágiles en la estructura administrativa?",
+                    options: [
+                        "Fortalece la jerarquía tradicional",
+                        "Elimina toda forma de estructura",
+                        "Reduce niveles jerárquicos y fomenta equipos autogestionados",
+                        "Aumenta la necesidad de supervisión directa"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "Las metodologías ágiles tienden a reducir niveles jerárquicos, fomentan equipos autoorganizados y requieren una estructura administrativa que facilite la toma de decisiones rápidas y la adaptación al cambio."
+                }
+            ],
+            costs: [
+                {
+                    question: "¿Qué estructura organizacional suele tener menores costos administrativos?",
+                    options: [
+                        "Estructura jerárquica con muchos niveles",
+                        "Estructura matricial compleja",
+                        "Estructura plana con pocos niveles jerárquicos",
+                        "Estructura divisional por productos"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "Una estructura plana con pocos niveles jerárquicos tiende a tener menores costos administrativos al reducir mandos medios y agilizar la toma de decisiones, aunque puede generar desafíos de coordinación en organizaciones grandes."
+                },
+                {
+                    question: "En la evaluación de costos de procedimientos administrativos, ¿qué enfoque genera mayor eficiencia organizacional?",
+                    options: [
+                        "Documentar exhaustivamente todos los procedimientos sin excepción",
+                        "Eliminar todos los procedimientos para reducir burocracia",
+                        "Analizar valor añadido de cada procedimiento y simplificar aquellos no esenciales",
+                        "Tercerizar todos los procedimientos administrativos"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "Analizar el valor añadido de cada procedimiento permite mantener aquellos que agregan valor mientras se simplifican o eliminan los no esenciales, optimizando la estructura de costos administrativos sin comprometer la calidad operativa."
+                },
+                {
+                    question: "¿Cómo influyen los costos fijos y variables en la flexibilidad de la estructura organizacional?",
+                    options: [
+                        "Los costos no tienen relación con la flexibilidad estructural",
+                        "Una estructura con altos costos fijos suele ser más flexible ante cambios",
+                        "Una estructura con mayor proporción de costos variables suele adaptarse mejor a fluctuaciones",
+                        "Los costos variables dificultan siempre la adaptabilidad"
+                    ],
+                    correctAnswer: 2,
+                    explanation: "Las organizaciones con mayor proporción de costos variables (como personal por proyecto o servicios subcontratados) suelen tener estructuras más flexibles que pueden expandirse o contraerse según las necesidades, adaptándose mejor a cambios en el entorno."
+                }
+            ]
+        };
+        
+        // Mapeo de tipos de celda a clases CSS
+        const cellTypeToClass = {
+            0: "wall",
+            1: "path",
+            2: "department-production",
+            3: "department-marketing",
+            4: "department-finance",
+            5: "department-hr",
+            6: "department-admin",
+            7: "cost-cell",
+            8: "goal"
+        };
+        
+        // Mapeo de tipos de celda a áreas organizacionales
+        const cellTypeToArea = {
+            2: "production",
+            3: "marketing",
+            4: "finance",
+            5: "hr",
+            6: "admin",
+            7: "costs"
+        };
+        
+        // Mapeo de tipos de celda a nombres de áreas
+        const cellTypeToName = {
+            2: "Producción",
+            3: "Mercadeo",
+            4: "Finanzas",
+            5: "Recursos Humanos",
+            6: "Administración",
+            7: "Costos Organizacionales",
+            8: "Meta Final"
+        };
+        
+        // Componente principal del juego
+        function LaberintoOrganizacional() {
+            const [maze, setMaze] = useState(initialMazeDefinition);
+            const [playerPosition, setPlayerPosition] = useState({ x: 1, y: 1 });
+            const [showChallenge, setShowChallenge] = useState(false);
+            const [currentChallenge, setCurrentChallenge] = useState(null);
+            const [currentArea, setCurrentArea] = useState(null);
+            const [score, setScore] = useState(0);
+            const [visitedAreas, setVisitedAreas] = useState({
+                production: false,
+                marketing: false,
+                finance: false,
+                hr: false,
+                admin: false,
+                costs: false
+            });
+            const [gameCompleted, setGameCompleted] = useState(false);
+            const [selectedOption, setSelectedOption] = useState(null);
+            const [showExplanation, setShowExplanation] = useState(false);
+            const [isCorrect, setIsCorrect] = useState(false);
+            const [challengesCompleted, setChallengesCompleted] = useState(0);
+            const [showIntro, setShowIntro] = useState(true);
+            
+            // Referencia para contenedor del juego (scrolling)
+            const gameContainerRef = useRef(null);
+            
+            // Función para mover al jugador
+            const movePlayer = (direction) => {
+                if (showChallenge || gameCompleted) return;
+                
+                const movements = {
+                    up: { x: 0, y: -1 },
+                    down: { x: 0, y: 1 },
+                    left: { x: -1, y: 0 },
+                    right: { x: 1, y: 0 }
+                };
+                
+                const newPos = {
+                    x: playerPosition.x + movements[direction].x,
+                    y: playerPosition.y + movements[direction].y
+                };
+                
+                // Verificar si la nueva posición es válida (no es una pared)
+                if (maze[newPos.y] && maze[newPos.y][newPos.x] !== 0) {
+                    setPlayerPosition(newPos);
+                    
+                    // Verificar si llegó a la meta
+                    if (maze[newPos.y][newPos.x] === 8) {
+                        if (challengesCompleted >= 6) {
+                            setGameCompleted(true);
+                        } else {
+                            alert("¡Necesitas completar desafíos en todas las áreas antes de llegar a la meta!");
+                            setPlayerPosition({ x: playerPosition.x, y: playerPosition.y });
+                        }
+                        return;
+                    }
+                    
+                    // Verificar si entró en un área organizacional
+                    const cellType = maze[newPos.y][newPos.x];
+                    if (cellType >= 2 && cellType <= 7) {
+                        const area = cellTypeToArea[cellType];
+                        
+                        // Solo mostrar desafío si no ha visitado el área antes
+                        if (!visitedAreas[area]) {
+                            setCurrentArea(area);
+                            // Seleccionar un desafío aleatorio para el área
+                            const areaQuestions = challenges[area];
+                            const randomQuestion = areaQuestions[Math.floor(Math.random() * areaQuestions.length)];
+                            setCurrentChallenge(randomQuestion);
+                            setShowChallenge(true);
+                            setSelectedOption(null);
+                            setShowExplanation(false);
+                        }
+                    }
+                }
+            };
+            
+            // Manejar la respuesta al desafío
+            const handleAnswer = (optionIndex) => {
+                setSelectedOption(optionIndex);
+                const correct = optionIndex === currentChallenge.correctAnswer;
+                setIsCorrect(correct);
+                
+                if (correct) {
+                    setScore(score + 100);
+                }
+                
+                setShowExplanation(true);
+            };
+            
+            // Continuar después del desafío
+            const handleContinue = () => {
+                // Marcar el área como visitada
+                setVisitedAreas({
+                    ...visitedAreas,
+                    [currentArea]: true
+                });
+                
+                setChallengesCompleted(challengesCompleted + 1);
+                setShowChallenge(false);
+                setCurrentChallenge(null);
+            };
+            
+            // Reiniciar el juego
+            const resetGame = () => {
+                setPlayerPosition({ x: 1, y: 1 });
+                setScore(0);
+                setVisitedAreas({
+                    production: false,
+                    marketing: false,
+                    finance: false,
+                    hr: false,
+                    admin: false,
+                    costs: false
+                });
+                setChallengesCompleted(0);
+                setGameCompleted(false);
+                setShowIntro(true);
+            };
+            
+            // Event listeners para controlar el movimiento con teclado
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    const key = e.key.toLowerCase();
+                    
+                    if (key === "arrowup" || key === "w") movePlayer("up");
+                    else if (key === "arrowdown" || key === "s") movePlayer("down");
+                    else if (key === "arrowleft" || key === "a") movePlayer("left");
+                    else if (key === "arrowright" || key === "d") movePlayer("right");
+                };
+                
+                window.addEventListener("keydown", handleKeyDown);
+                
+                return () => {
+                    window.removeEventListener("keydown", handleKeyDown);
+                };
+            }, [playerPosition, showChallenge, gameCompleted]);
+            
+            // Scroll al jugador cuando se mueve
+            useEffect(() => {
+                if (gameContainerRef.current) {
+                    const playerElement = document.querySelector(".player");
+                    if (playerElement) {
+                        playerElement.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                            inline: "center"
+                        });
+                    }
+                }
+            }, [playerPosition]);
+            
+            return (
+                <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+                    {/* Pantalla de introducción */}
+                    {showIntro && (
+                        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-lg max-w-lg w-full p-6 fadeIn">
+                                <h2 className="text-2xl font-bold text-gray-800 mb-4">Laberinto Corporativo</h2>
+                                <p className="mb-4 text-gray-700">
+                                    Bienvenido al Laberinto Corporativo, un juego educativo sobre estructura organizacional.
+                                </p>
+                                <p className="mb-4 text-gray-700">
+                                    Tu misión es explorar todas las áreas funcionales de la organización: 
+                                    <span className="font-semibold">Producción, Mercadeo, Finanzas, Recursos Humanos, Administración</span> y 
+                                    comprender la <span className="font-semibold">Incidencia de los Costos</span> en cada una.
+                                </p>
+                                <p className="mb-4 text-gray-700">
+                                    En cada área enfrentarás desafíos que pondrán a prueba tu conocimiento sobre estructura organizacional.
+                                </p>
+                                <h3 className="text-lg font-semibold mb-2">Instrucciones:</h3>
+                                <ul className="list-disc pl-5 mb-4 text-gray-700">
+                                    <li>Usa las flechas del teclado o los botones para moverte</li>
+                                    <li>Visita todas las áreas y completa los desafíos</li>
+                                    <li>Llega a la meta después de completar todos los desafíos</li>
+                                </ul>
+                                <button 
+                                    onClick={() => setShowIntro(false)}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300"
+                                >
+                                    ¡Comenzar!
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Encabezado y panel de información */}
+                    <div className="px-4 py-2 bg-white shadow-md rounded-lg max-w-4xl mx-auto mb-4">
+                        <div className="flex justify-between items-center">
+                            <h1 className="text-2xl font-bold text-gray-800">Laberinto Corporativo</h1>
+                            <div className="text-xl font-bold text-blue-600">Puntos: {score}</div>
+                        </div>
+                        <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                            <div className={`text-center text-xs p-1 rounded ${visitedAreas.production ? "bg-blue-500 text-white" : "bg-gray-200"}`}>
+                                Producción {visitedAreas.production ? "✓" : ""}
+                            </div>
+                            <div className={`text-center text-xs p-1 rounded ${visitedAreas.marketing ? "bg-red-500 text-white" : "bg-gray-200"}`}>
+                                Mercadeo {visitedAreas.marketing ? "✓" : ""}
+                            </div>
+                            <div className={`text-center text-xs p-1 rounded ${visitedAreas.finance ? "bg-green-500 text-white" : "bg-gray-200"}`}>
+                                Finanzas {visitedAreas.finance ? "✓" : ""}
+                            </div>
+                            <div className={`text-center text-xs p-1 rounded ${visitedAreas.hr ? "bg-purple-500 text-white" : "bg-gray-200"}`}>
+                                RRHH {visitedAreas.hr ? "✓" : ""}
+                            </div>
+                            <div className={`text-center text-xs p-1 rounded ${visitedAreas.admin ? "bg-yellow-500 text-white" : "bg-gray-200"}`}>
+                                Admin {visitedAreas.admin ? "✓" : ""}
+                            </div>
+                            <div className={`text-center text-xs p-1 rounded ${visitedAreas.costs ? "bg-teal-500 text-white" : "bg-gray-200"}`}>
+                                Costos {visitedAreas.costs ? "✓" : ""}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Tablero del juego */}
+                    <div ref={gameContainerRef} className="relative bg-white shadow-md rounded-lg overflow-auto max-w-4xl mx-auto h-96">
+                        <div className="relative min-w-max p-2">
+                            {maze.map((row, rowIndex) => (
+                                <div key={rowIndex} className="flex">
+                                    {row.map((cell, colIndex) => (
+                                        <div 
+                                            key={`${rowIndex}-${colIndex}`}
+                                            className={`maze-cell ${cellTypeToClass[cell]} flex items-center justify-center text-xs`}
+                                        >
+                                            {cell === 8 && <i className="bx bxs-flag text-black text-xl"></i>}
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                            
+                            {/* Jugador */}
+                            <div 
+                                className="player rounded-full bg-white border-4 border-indigo-600 flex items-center justify-center player-avatar"
+                                style={{ 
+                                    left: `${playerPosition.x * 40 + 5}px`,
+                                    top: `${playerPosition.y * 40 + 5}px` 
+                                }}
+                            >
+                                <i className="bx bxs-user text-indigo-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Controles de movimiento */}
+                    <div className="mt-4 bg-white shadow-md rounded-lg p-4 max-w-4xl mx-auto">
+                        <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+                            <div></div>
+                            <button 
+                                onClick={() => movePlayer("up")}
+                                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center"
+                                disabled={showChallenge}
+                            >
+                                <i className="bx bx-up-arrow-alt text-xl"></i>
+                            </button>
+                            <div></div>
+                            
+                            <button 
+                                onClick={() => movePlayer("left")}
+                                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center"
+                                disabled={showChallenge}
+                            >
+                                <i className="bx bx-left-arrow-alt text-xl"></i>
+                            </button>
+                            <div></div>
+                            <button 
+                                onClick={() => movePlayer("right")}
+                                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center"
+                                disabled={showChallenge}
+                            >
+                                <i className="bx bx-right-arrow-alt text-xl"></i>
+                            </button>
+                            
+                            <div></div>
+                            <button 
+                                onClick={() => movePlayer("down")}
+                                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded flex items-center justify-center"
+                                disabled={showChallenge}
+                            >
+                                <i className="bx bx-down-arrow-alt text-xl"></i>
+                            </button>
+                            <div></div>
+                        </div>
+                        
+                        <div className="mt-4 text-center text-sm text-gray-600">
+                            <p>O usa las teclas de flecha en tu teclado para moverte</p>
+                        </div>
+                    </div>
+                    
+                    {/* Leyenda */}
+                    <div className="mt-4 bg-white shadow-md rounded-lg p-4 max-w-4xl mx-auto">
+                        <h3 className="font-bold text-gray-800 mb-2">Leyenda:</h3>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div className="flex items-center">
+                                <div className="w-4 h-4 bg-blue-500 mr-2"></div>
+                                <span className="text-sm">Producción</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-4 h-4 bg-red-500 mr-2"></div>
+                                <span className="text-sm">Mercadeo</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-4 h-4 bg-green-500 mr-2"></div>
+                                <span className="text-sm">Finanzas</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-4 h-4 bg-purple-500 mr-2"></div>
+                                <span className="text-sm">Recursos Humanos</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-4 h-4 bg-yellow-500 mr-2"></div>
+                                <span className="text-sm">Administración</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-4 h-4 bg-teal-500 mr-2"></div>
+                                <span className="text-sm">Costos</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-4 h-4 bg-yellow-400 mr-2"></div>
+                                <span className="text-sm">Meta</span>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-4 h-4 bg-gray-800 mr-2"></div>
+                                <span className="text-sm">Pared</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Modal de desafío */}
+                    {showChallenge && currentChallenge && (
+                        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-lg max-w-lg w-full p-6 challenge-modal fadeIn">
+                                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                                    Desafío: {cellTypeToName[Object.keys(cellTypeToArea).find(key => cellTypeToArea[key] === currentArea)]}
+                                </h2>
+                                <p className="mb-6 text-gray-700">{currentChallenge.question}</p>
+                                
+                                <div className="space-y-3 mb-6">
+                                    {currentChallenge.options.map((option, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => handleAnswer(index)}
+                                            disabled={selectedOption !== null}
+                                            className={`w-full text-left p-3 rounded border ${
+                                                selectedOption === null 
+                                                    ? "border-gray-300 hover:bg-gray-100" 
+                                                    : selectedOption === index
+                                                        ? (isCorrect ? "bg-green-100 border-green-500" : "bg-red-100 border-red-500")
+                                                        : index === currentChallenge.correctAnswer && showExplanation
+                                                            ? "bg-green-100 border-green-500"
+                                                            : "border-gray-300 opacity-70"
+                                            }`}
+                                        >
+                                            {option}
+                                            {selectedOption === index && isCorrect && showExplanation && (
+                                                <span className="ml-2 text-green-600">✓</span>
+                                            )}
+                                            {selectedOption === index && !isCorrect && showExplanation && (
+                                                <span className="ml-2 text-red-600">✗</span>
+                                            )}
+                                            {index === currentChallenge.correctAnswer && showExplanation && selectedOption !== index && (
+                                                <span className="ml-2 text-green-600">✓</span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                                
+                                {showExplanation && (
+                                    <div className={`p-4 rounded mb-4 ${isCorrect ? "bg-green-50" : "bg-red-50"}`}>
+                                        <h3 className={`font-bold ${isCorrect ? "text-green-700" : "text-red-700"} mb-2`}>
+                                            {isCorrect ? "¡Correcto!" : "Incorrecto"}
+                                        </h3>
+                                        <p className="text-gray-700">{currentChallenge.explanation}</p>
+                                    </div>
+                                )}
+                                
+                                {selectedOption !== null && (
+                                    <button
+                                        onClick={handleContinue}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300"
+                                    >
+                                        Continuar
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Modal de juego completado */}
+                    {gameCompleted && (
+                        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-lg max-w-lg w-full p-6 fadeIn">
+                                <h2 className="text-2xl font-bold text-gray-800 mb-4">¡Felicidades!</h2>
+                                <p className="mb-4 text-gray-700">
+                                    Has completado el Laberinto Corporativo y aprendido sobre la estructura organizacional de un proyecto.
+                                </p>
+                                <p className="mb-2 text-gray-700">
+                                    Puntuación final: <span className="font-bold text-blue-600">{score}</span>
+                                </p>
+                                <p className="mb-6 text-gray-700">
+                                    Áreas exploradas: <span className="font-bold">{challengesCompleted}/6</span>
+                                </p>
+                                <h3 className="text-xl font-semibold mb-2">Lo que has aprendido:</h3>
+                                <ul className="list-disc pl-5 mb-6 text-gray-700">
+                                    <li>Estructura y funciones de los departamentos clave en una organización</li>
+                                    <li>Cómo las decisiones en un área afectan a otras partes de la organización</li>
+                                    <li>La incidencia de los costos en los aspectos organizacionales</li>
+                                    <li>La importancia de los sistemas y procedimientos administrativos eficientes</li>
+                                </ul>
+                                <button
+                                    onClick={resetGame}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300"
+                                >
+                                    Jugar de nuevo
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        
+        // Renderizar el juego en el DOM
+        ReactDOM.render(
+            <LaberintoOrganizacional />,
+            document.getElementById('root')
+        );
+    </script>
+</body>
+</html>
